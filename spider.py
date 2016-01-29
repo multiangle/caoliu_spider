@@ -6,6 +6,7 @@ __author__ = 'multiangle'
 import urllib.request as request
 import time
 import random
+import json
 
 # import from this folder
 from bs4 import BeautifulSoup
@@ -17,7 +18,7 @@ class spider():
         page=self.getData(self.base_url+'/index.php')
         entry_url=self.parse_main_page(page)
         flag_page=self.getData(entry_url[-3][1])
-        print(flag_page)
+        self.parse_flag_page(flag_page)
 
     def parse_main_page(self,page):
         soup=BeautifulSoup(page)
@@ -46,6 +47,38 @@ class spider():
             url_list.append(cell)
         return url_list
 
+    def parse_flag_page(self,page):
+        # 达盖尔的旗帜
+        soup=BeautifulSoup(page)
+        div_id_main=soup.find('div',attrs={'id':'main'})
+        div_class_t=div_id_main.find_all('div',attrs={'class':'t'})[1]
+        tr_class_tr3=div_class_t.find_all('tr',attrs={'class':'tr3'})
+        start_line=12
+        end_line=tr_class_tr3.__len__()-2
+
+        page_data=[]
+        for i in range(start_line,end_line+1):
+            line=tr_class_tr3[i]
+            print(line)
+            data=line
+            cell={}
+            td=data.find_all('td')
+            h3=td[1].find('h3')
+            a=h3.find('a')
+            url=config.base_url+'/'+a['href']
+            cell['title']=h3.text
+            cell['link']=url
+            span=td[1].find('span')
+            try:
+                ret_page_num=int(span.find_all('a')[-1].text)
+                cell['ret_page_num']=ret_page_num
+            except:
+                pass
+            cell['author']=td[2].find('a').text
+            cell['ret_num']=int(td[3].text)
+            page_data.append(cell)
+        for x in page_data:
+            print(x['title'])
 
     def getData(self,url):
         try:
