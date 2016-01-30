@@ -9,6 +9,7 @@ import random
 import json
 import re
 import urllib
+import os
 
 # import from this folder
 from bs4 import BeautifulSoup
@@ -91,16 +92,22 @@ class spider():
 
     def deal_thread(self,url):
         page=self.getData(url)
-        pic_url=self.parse_thread_page(page)
-        base_dir='E:\\multiangle\\Coding!\\test'
+        page_info=self.parse_thread_page(page)
+        pic_url=page_info['pic_url']
+        title=page_info['title']
+        base_dir='E:\\multiangle\\Coding!\\python\\caoliu_spider\\pic'
+        dir=base_dir+'\\'+title
+        os.mkdir(dir)
         for i in range(0,pic_url.__len__()):
-            self.download_pic(pic_url[i]['src'],base_dir,str(i)+'.jpg')
-
+            self.download_pic(pic_url[i]['src'],dir,str(i)+'.jpg')
 
     def parse_thread_page(self,page):
+        page_info={}
         soup=BeautifulSoup(page)
         div_id_main=soup.find('div',attrs={'id':'main'})
         div_class_t=div_id_main.find_all('div',attrs={'class':'t2'})[0]
+        title=div_class_t.find('h4').text
+        page_info['title']=title
         # the main content of this thread is in this block
         div_do_not_catch=div_class_t.find_all('div',attrs={'class':'do_not_catch'})[0]
         input_list=div_do_not_catch.find_all('input')
@@ -116,7 +123,8 @@ class spider():
             # print(line['src'])
             # temp['type']=type
             pic_url.append(temp)
-        return pic_url
+        page_info['pic_url']=pic_url
+        return page_info
 
     def download_pic(self,url,save_folder,file_name):
         pic=self.getData(url,encoding=False)
@@ -159,4 +167,4 @@ def save_page(page,path):
 
 if __name__=='__main__':
     x=spider()
-    x.deal_thread('http://cl.eecl.me/htm_data/16/1507/1572977.html')
+    x.deal_thread('http://cl.eecl.me/htm_data/16/1602/1816262.html')
