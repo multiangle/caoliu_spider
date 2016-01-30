@@ -7,6 +7,7 @@ import urllib.request as request
 import time
 import random
 import json
+import re
 
 # import from this folder
 from bs4 import BeautifulSoup
@@ -17,8 +18,13 @@ class spider():
         self.base_url=config.base_url
         page=self.getData(self.base_url+'/index.php')
         entry_url=self.parse_main_page(page)
-        flag_page=self.getData(entry_url[-3][1])
-        self.parse_flag_page(flag_page)
+        page_num=2
+        page_url=entry_url[-3][1]+'&search=&page='+str(page_num)
+        flag_page=self.getData(page_url)
+        thread_link=self.parse_flag_page(flag_page,2)
+        thread_link='http://cl.eecl.me/htm_data/16/1601/1818777.html'
+        thread_page=self.getData(thread_link)
+        self.parse_thread_page(thread_page)
 
     def parse_main_page(self,page):
         soup=BeautifulSoup(page)
@@ -47,19 +53,22 @@ class spider():
             url_list.append(cell)
         return url_list
 
-    def parse_flag_page(self,page):
-        # 达盖尔的旗帜
+    def parse_flag_page(self,page,page_num):
+        # 解析达盖尔的旗帜
         soup=BeautifulSoup(page)
         div_id_main=soup.find('div',attrs={'id':'main'})
         div_class_t=div_id_main.find_all('div',attrs={'class':'t'})[1]
         tr_class_tr3=div_class_t.find_all('tr',attrs={'class':'tr3'})
-        start_line=12
-        end_line=tr_class_tr3.__len__()-2
+        if page_num==1:
+            start_line=12
+            end_line=tr_class_tr3.__len__()-2
+        else:
+            start_line=0
+            end_line=tr_class_tr3.__len__()-2
 
         page_data=[]
         for i in range(start_line,end_line+1):
             line=tr_class_tr3[i]
-            print(line)
             data=line
             cell={}
             td=data.find_all('td')
@@ -77,8 +86,27 @@ class spider():
             cell['author']=td[2].find('a').text
             cell['ret_num']=int(td[3].text)
             page_data.append(cell)
-        for x in page_data:
-            print(x['title'])
+        return  page_data
+
+    def parse_thread_page(self,page):
+        soup=BeautifulSoup(page)
+        div_id_main=soup.find('div',attrs={'id':'main'})
+        div_class_t=div_id_main.find_all('div',attrs={'class':'t2'})[0]
+        # the main content of this thread is in this block
+        div_do_not_catch=div_class_t.find_all('div',attrs={'class':'do_not_catch'})[0]
+        input_list=div_do_not_catch.find_all('input')
+        pic_url=[]
+        for line in input_list:
+            temp={}
+            temp['src']=line['src']
+            onclick=line['onclick']
+            pattern=re.compile(r"window.open.+?\+encode")
+            match=re.match(pattern,onclick).group(0)[13:-8]
+            temp['onclick']=match+line['src']
+            pic_url.append(temp)
+            print(temp['src'])
+
+
 
     def getData(self,url):
         try:
