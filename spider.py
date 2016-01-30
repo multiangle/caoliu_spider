@@ -8,6 +8,7 @@ import time
 import random
 import json
 import re
+import urllib
 
 # import from this folder
 from bs4 import BeautifulSoup
@@ -16,15 +17,15 @@ import spider_config as config
 class spider():
     def __init__(self):
         self.base_url=config.base_url
-        page=self.getData(self.base_url+'/index.php')
-        entry_url=self.parse_main_page(page)
-        page_num=2
-        page_url=entry_url[-3][1]+'&search=&page='+str(page_num)
-        flag_page=self.getData(page_url)
-        thread_link=self.parse_flag_page(flag_page,2)
-        thread_link='http://cl.eecl.me/htm_data/16/1601/1818777.html'
-        thread_page=self.getData(thread_link)
-        self.parse_thread_page(thread_page)
+        # page=self.getData(self.base_url+'/index.php')
+        # entry_url=self.parse_main_page(page)
+        # page_num=2
+        # page_url=entry_url[-3][1]+'&search=&page='+str(page_num)
+        # flag_page=self.getData(page_url)
+        # thread_link=self.parse_flag_page(flag_page,2)
+        # thread_link='http://cl.eecl.me/htm_data/16/1601/1818777.html'
+        # thread_page=self.getData(thread_link)
+        # self.parse_thread_page(thread_page)
 
     def parse_main_page(self,page):
         soup=BeautifulSoup(page)
@@ -88,6 +89,14 @@ class spider():
             page_data.append(cell)
         return  page_data
 
+    def deal_thread(self,url):
+        page=self.getData(url)
+        pic_url=self.parse_thread_page(page)
+        base_dir='E:\\multiangle\\Coding!\\test'
+        for i in range(0,pic_url.__len__()):
+            self.download_pic(pic_url[i]['src'],base_dir,str(i)+'.jpg')
+
+
     def parse_thread_page(self,page):
         soup=BeautifulSoup(page)
         div_id_main=soup.find('div',attrs={'id':'main'})
@@ -103,27 +112,35 @@ class spider():
             pattern=re.compile(r"window.open.+?\+encode")
             match=re.match(pattern,onclick).group(0)[13:-8]
             temp['onclick']=match+line['src']
+            # type=re.match(r'jpeg',str(line['src']))
+            # print(line['src'])
+            # temp['type']=type
             pic_url.append(temp)
-            print(temp['src'])
+        return pic_url
 
+    def download_pic(self,url,save_folder,file_name):
+        pic=self.getData(url,encoding=False)
+        name=save_folder+'\\'+file_name
+        f=open(name,'wb')
+        f.write(pic)
+        f.close()
 
-
-    def getData(self,url):
+    def getData(self,url,encoding=True):
         try:
-            res=self.getData_inner(url)
+            res=self.getData_inner(url,encoding)
             return res
         except Exception as e:
             reconn_count=1
             while reconn_count<=config.reconn_num:
                 time.sleep(max(random.gauss(2,0.5),0.5))
                 try:
-                    res=self.getData_inner(url)
+                    res=self.getData_inner(url,encoding)
                     return res
                 except:
                     reconn_count+=1
             raise ConnectionError('Unable to get page')
 
-    def getData_inner(self,url):
+    def getData_inner(self,url,encoding=True):
         headers = {'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 8_0 like Mac OS X) '
                     'AppleWebKit/600.1.3 (KHTML, like Gecko) Version/8.0 Mobile'
                     '/12A4345d Safari/600.1.4'}
@@ -131,7 +148,10 @@ class spider():
         opener=request.build_opener()
         request.install_opener(opener)
         result=opener.open(req,timeout=config.timeout)
-        return result.read().decode('gbk')
+        if encoding:
+            return result.read().decode('gbk')
+        else:
+            return result.read()
 
 def save_page(page,path):
     pass
@@ -139,3 +159,4 @@ def save_page(page,path):
 
 if __name__=='__main__':
     x=spider()
+    x.deal_thread('http://cl.eecl.me/htm_data/16/1507/1572977.html')
