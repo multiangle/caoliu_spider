@@ -1,6 +1,7 @@
 __author__ = 'multiangle'
 
 import csv,pickle
+import os
 
 def read_csv(path):         #读入原始csv文件，不做任何变动
     file=open(path,'r')
@@ -16,3 +17,8 @@ def save_pickle(data,path):
     file=open(path,'wb')
     pickle.dump(data,file)
     file.close()
+
+
+if __name__=='__main__':
+    path='E:\\multiangle\\Coding!\\test\\test'
+    mkdir(path)

@@ -10,6 +10,7 @@ import json
 import re
 import urllib
 import os
+import threading
 
 # import from this folder
 from bs4 import BeautifulSoup
@@ -27,6 +28,53 @@ class spider():
         # thread_link='http://cl.eecl.me/htm_data/16/1601/1818777.html'
         # thread_page=self.getData(thread_link)
         # self.parse_thread_page(thread_page)
+
+    def run(self):
+        page=self.getData(self.base_url+'/index.php')
+        entry_url=self.parse_main_page(page)
+        for page_num in range(1,101):
+            print('start to parse page {num}'.format(num=page_num))
+            page_url=entry_url[-3][1]+'&search=&page='+str(page_num)
+            flag_page=self.getData(page_url)
+            thread_link=self.parse_flag_page(flag_page,page_num)
+            # thread_link='http://cl.eecl.me/htm_data/16/1601/1818777.html'
+            thread_pool=[]
+            for i in range(0,config.thread_num):
+                t=deal_thread(thread_link)
+                thread_pool.append(t)
+            for i in thread_pool:
+                i.start()
+            while thread_link:
+                for i in range(0,thread_pool.__len__()):
+                    if not thread_pool[i].is_alive():
+                        thread_pool[i]=deal_thread(thread_link)
+                        thread_pool[i].start()
+                time.sleep(1)
+            while True:
+                all_dead=True
+                for i in thread_pool:
+                    if i.is_alive():
+                        all_dead=False
+                        break
+                if all_dead:
+                    break
+                time.sleep(1)
+
+
+
+
+
+            count=0
+            for thread in thread_link:
+                count+=1
+                print('start to parse thread '+str(count))
+                try:
+                    self.deal_thread(thread['link'])
+                except:
+                    print('fail to parse thread: '+thread['title'])
+
+            # thread_page=self.getData(thread_link)
+            # self.parse_thread_page(thread_page)
 
     def parse_main_page(self,page):
         soup=BeautifulSoup(page)
@@ -90,52 +138,6 @@ class spider():
             page_data.append(cell)
         return  page_data
 
-    def deal_thread(self,url):
-        page=self.getData(url)
-        page_info=self.parse_thread_page(page)
-        pic_url=page_info['pic_url']
-        title=page_info['title']
-        base_dir='E:\\multiangle\\Coding!\\python\\caoliu_spider\\pic'
-        dir=base_dir+'\\'+title
-        os.mkdir(dir)
-        for i in range(0,pic_url.__len__()):
-            try:
-                self.download_pic(pic_url[i]['src'],dir,str(i)+'.jpg')
-            except:
-                pass
-
-    def parse_thread_page(self,page):
-        page_info={}
-        soup=BeautifulSoup(page)
-        div_id_main=soup.find('div',attrs={'id':'main'})
-        div_class_t=div_id_main.find_all('div',attrs={'class':'t2'})[0]
-        title=div_class_t.find('h4').text
-        page_info['title']=title
-        # the main content of this thread is in this block
-        div_do_not_catch=div_class_t.find_all('div',attrs={'class':'do_not_catch'})[0]
-        input_list=div_do_not_catch.find_all('input')
-        pic_url=[]
-        for line in input_list:
-            temp={}
-            temp['src']=line['src']
-            onclick=line['onclick']
-            pattern=re.compile(r"window.open.+?\+encode")
-            match=re.match(pattern,onclick).group(0)[13:-8]
-            temp['onclick']=match+line['src']
-            # type=re.match(r'jpeg',str(line['src']))
-            # print(line['src'])
-            # temp['type']=type
-            pic_url.append(temp)
-        page_info['pic_url']=pic_url
-        return page_info
-
-    def download_pic(self,url,save_folder,file_name):
-        pic=self.getData(url,encoding=False)
-        name=save_folder+'\\'+file_name
-        f=open(name,'wb')
-        f.write(pic)
-        f.close()
-
     def getData(self,url,encoding=True):
         try:
             res=self.getData_inner(url,encoding)
@@ -164,10 +166,94 @@ class spider():
         else:
             return result.read()
 
+class deal_thread(threading.Thread):
+    def __init__(self,task_list):
+        threading.Thread.__init__(self)
+        self.task_list=task_list
+
+    def run(self):
+        while self.task_list:
+            task=self.task_list.pop(0)
+            print('start to parse thread '+task['title'])
+            url=task['link']
+            page=self.getData(url)
+            page_info=self.parse_thread_page(page)
+            pic_url=page_info['pic_url']
+            title=page_info['title']
+            base_dir='E:\\multiangle\\Coding!\\python\\caoliu_spider\\pic'
+            dir=base_dir+'\\'+title
+            os.mkdir(dir)
+            for i in range(0,pic_url.__len__()):
+                try:
+                    self.download_pic(pic_url[i]['src'],dir,str(i)+'.jpg')
+                except:
+                    pass
+
+    def getData(self,url,encoding=True):
+        try:
+            res=self.getData_inner(url,encoding)
+            return res
+        except Exception as e:
+            reconn_count=1
+            while reconn_count<=config.reconn_num:
+                time.sleep(max(random.gauss(2,0.5),0.5))
+                try:
+                    res=self.getData_inner(url,encoding)
+                    return res
+                except:
+                    reconn_count+=1
+            raise ConnectionError('Unable to get page')
+
+    def getData_inner(self,url,encoding=True):
+        headers = {'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 8_0 like Mac OS X) '
+                                 'AppleWebKit/600.1.3 (KHTML, like Gecko) Version/8.0 Mobile'
+                                 '/12A4345d Safari/600.1.4'}
+        req=request.Request(url,headers=headers)
+        opener=request.build_opener()
+        request.install_opener(opener)
+        result=opener.open(req,timeout=config.timeout)
+        if encoding:
+            return result.read().decode('gbk')
+        else:
+            return result.read()
+
+    def download_pic(self,url,save_folder,file_name):
+        pic=self.getData(url,encoding=False)
+        name=save_folder+'\\'+file_name
+        f=open(name,'wb')
+        f.write(pic)
+        f.close()
+
+    def parse_thread_page(self,page):
+        page_info={}
+        soup=BeautifulSoup(page)
+        div_id_main=soup.find('div',attrs={'id':'main'})
+        div_class_t=div_id_main.find_all('div',attrs={'class':'t2'})[0]
+        title=div_class_t.find('h4').text
+        page_info['title']=title
+        # the main content of this thread is in this block
+        div_do_not_catch=div_class_t.find_all('div',attrs={'class':'do_not_catch'})[0]
+        input_list=div_do_not_catch.find_all('input')
+        pic_url=[]
+        for line in input_list:
+            temp={}
+            temp['src']=line['src']
+            onclick=line['onclick']
+            pattern=re.compile(r"window.open.+?\+encode")
+            match=re.match(pattern,onclick).group(0)[13:-8]
+            temp['onclick']=match+line['src']
+            # type=re.match(r'jpeg',str(line['src']))
+            # print(line['src'])
+            # temp['type']=type
+            pic_url.append(temp)
+        page_info['pic_url']=pic_url
+        return page_info
+
 def save_page(page,path):
     pass
     #todo
 
 if __name__=='__main__':
     x=spider()
-    x.deal_thread('http://cl.eecl.me/htm_data/16/1601/1821177.html')
+    # x.deal_thread('http://cl.eecl.me/htm_data/16/1601/1821177.html')
+    x.run()
