@@ -99,7 +99,10 @@ class spider():
         dir=base_dir+'\\'+title
         os.mkdir(dir)
         for i in range(0,pic_url.__len__()):
-            self.download_pic(pic_url[i]['src'],dir,str(i)+'.jpg')
+            try:
+                self.download_pic(pic_url[i]['src'],dir,str(i)+'.jpg')
+            except:
+                pass
 
     def parse_thread_page(self,page):
         page_info={}
@@ -167,4 +170,4 @@ def save_page(page,path):
 
 if __name__=='__main__':
     x=spider()
-    x.deal_thread('http://cl.eecl.me/htm_data/16/1602/1816262.html')
+    x.deal_thread('http://cl.eecl.me/htm_data/16/1601/1821177.html')
