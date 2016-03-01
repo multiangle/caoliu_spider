@@ -180,7 +180,7 @@ class deal_thread(threading.Thread):
             page_info=self.parse_thread_page(page)
             pic_url=page_info['pic_url']
             title=page_info['title']
-            base_dir='E:\\multiangle\\Coding!\\python\\caoliu_spider\\pic'
+            base_dir=config.base_dir
             dir=base_dir+'\\'+title
             os.mkdir(dir)
             for i in range(0,pic_url.__len__()):
